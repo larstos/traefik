@@ -38,6 +38,7 @@ import (
 	"github.com/ogier/pflag"
 	"github.com/sirupsen/logrus"
 	"github.com/vulcand/oxy/roundrobin"
+	"github.com/containous/traefik/plugin"
 )
 
 func main() {
@@ -76,6 +77,7 @@ Complete documentation is available at https://traefik.io`,
 	f.AddParser(reflect.TypeOf(types.StatusCodes{}), &types.StatusCodes{})
 	f.AddParser(reflect.TypeOf(types.FieldNames{}), &types.FieldNames{})
 	f.AddParser(reflect.TypeOf(types.FieldHeaderNames{}), &types.FieldHeaderNames{})
+	f.AddParser(reflect.TypeOf(plugin.Plugins{}), &plugin.Plugins{})
 
 	// add commands
 	f.AddCommand(cmdVersion.NewCmd())

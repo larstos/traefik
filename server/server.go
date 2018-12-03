@@ -27,6 +27,9 @@ import (
 	"github.com/containous/traefik/middlewares"
 	"github.com/containous/traefik/middlewares/accesslog"
 	"github.com/containous/traefik/middlewares/tracing"
+
+	"github.com/containous/traefik/plugin"
+
 	"github.com/containous/traefik/provider"
 	"github.com/containous/traefik/safe"
 	traefiktls "github.com/containous/traefik/tls"
@@ -112,6 +115,7 @@ type Server struct {
 	configurationListeners        []func(types.Configuration)
 	entryPoints                   map[string]EntryPoint
 	bufferPool                    httputil.BufferPool
+	pluginManager                 *plugin.Manager
 }
 
 // EntryPoint entryPoint information (configuration + internalRouter)
@@ -234,6 +238,13 @@ func NewServer(globalConfiguration configuration.GlobalConfiguration, provider p
 	}
 
 	if globalConfiguration.AccessLog != nil {
+
+		server.metricsRegistry = registerMetricClients(staticConfiguration.Metrics)
+
+	// This initialization needs to happen after the metricsRegistry has been configure with clients
+	server.pluginManager = loadPlugins(staticConfiguration.Plugins)
+
+
 		var err error
 		server.accessLoggerMiddleware, err = accesslog.NewLogHandler(globalConfiguration.AccessLog)
 		if err != nil {
@@ -298,6 +309,7 @@ func (s *Server) Stop() {
 		}(sepn, sep)
 	}
 	wg.Wait()
+	s.pluginManager.Stop()
 	s.stopChan <- true
 }
 
@@ -313,6 +325,7 @@ func (s *Server) Close() {
 		}
 	}(ctx)
 	stopMetricsClients()
+	s.pluginManager.Stop()
 	s.stopLeadership()
 	s.routinesPool.Cleanup()
 	close(s.configurationChan)
@@ -721,4 +734,17 @@ func (s *Server) buildNameOrIPToCertificate(certs []tls.Certificate) map[string]
 		}
 	}
 	return certMap
+}
+
+func loadPlugins(plugins plugin.Plugins) *plugin.Manager {
+	manager := plugin.NewManager()
+	for _, pluginConfiguration := range plugins {
+		if err := manager.Load(pluginConfiguration); err != nil {
+			log.Errorf("Error loading plugin: %s", err)
+			continue
+		}
+		log.Infof("Plugin loaded %+v", pluginConfiguration)
+	}
+	return manager
+
 }
