@@ -237,14 +237,12 @@ func NewServer(globalConfiguration configuration.GlobalConfiguration, provider p
 		globalConfiguration.AccessLog = &types.AccessLog{FilePath: globalConfiguration.AccessLogsFile, Format: accesslog.CommonFormat}
 	}
 
-	if globalConfiguration.AccessLog != nil {
-
-		server.metricsRegistry = registerMetricClients(staticConfiguration.Metrics)
+	server.metricsRegistry = registerMetricClients(globalConfiguration.Metrics)
 
 	// This initialization needs to happen after the metricsRegistry has been configure with clients
-	server.pluginManager = loadPlugins(staticConfiguration.Plugins)
+	server.pluginManager = loadPlugins(globalConfiguration.Plugins)
 
-
+	if globalConfiguration.AccessLog != nil {
 		var err error
 		server.accessLoggerMiddleware, err = accesslog.NewLogHandler(globalConfiguration.AccessLog)
 		if err != nil {
